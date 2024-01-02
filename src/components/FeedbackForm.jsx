@@ -10,11 +10,10 @@ function FeedbackForm() {
   const [btnDisabled, setBtnDisabled] = useState(true);
   const [message, setMessage] = useState("");
 
-  const { addFeedback, feedbackEdit, updateFeedback } =
-    useContext(FeedbackContext);
+  const { addFeedback, feedbackEdit } = useContext(FeedbackContext);
 
   useEffect(() => {
-    if (feedbackEdit.edit === true) {
+    if (feedbackEdit.edit) {
       setBtnDisabled(false);
       setText(feedbackEdit.item.text);
       setRating(feedbackEdit.item.rating);
@@ -22,52 +21,62 @@ function FeedbackForm() {
   }, [feedbackEdit]);
 
   const handleTextChange = (e) => {
-    if (text === "") {
+    const newText = e.target.value;
+    setText(newText);
+
+    if (newText === "") {
       setBtnDisabled(true);
       setMessage(null);
-    } else if (text !== "" && text.trim().length <= 10) {
-      setMessage("Text must be at least 10 characters");
+    } else if (newText.trim().length <= 10) {
+      setMessage("Metin en az 10 karakter olmalıdır");
       setBtnDisabled(true);
     } else {
       setMessage(null);
       setBtnDisabled(false);
     }
-
-    setText(e.target.value);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (text.trim().length > 10) {
-      const newFeedback = {
-        text,
-        rating,
-      };
 
-      if (feedbackEdit.edit == true) {
-        updateFeedback(feedbackEdit.item.id, newFeedback);
+    try {
+      setMessage("Geri bildirim gönderiliyor...");
+      const response = await fetch("http://localhost:5000/api/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text, rating }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setMessage("Geri bildirim başarıyla gönderildi!");
       } else {
-        addFeedback(newFeedback);
+        console.error(`Sunucu şu şekilde yanıt verdi: ${response.status}`);
+        const errorMessage = await response.text();
+        setMessage(`Geri bildirim kaydedilemedi: ${errorMessage}`);
       }
-
-      setText("");
+    } catch (error) {
+      console.error("Geri bildirim gönderme hatası:", error);
+      setMessage("Geri bildirim kaydedilemedi. Lütfen daha sonra tekrar deneyin.");
     }
   };
 
   return (
     <Card>
       <form onSubmit={handleSubmit}>
-        <h2>How would you rate your service with us ?</h2>
-        <RatingSelect select={(rating) => setRating(rating)} />
+        <h2>Bizimle olan hizmetinizi nasıl değerlendirirsiniz?</h2>
+        <RatingSelect select={(newRating) => setRating(newRating)} />
         <div className="input-group">
           <input
             onChange={handleTextChange}
             type="text"
-            placeholder="Write a review"
+            placeholder="İnceleme yazın"
             value={text}
           />
           <Button type="Submit" isDisabled={btnDisabled}>
-            Send
+            Gönder
           </Button>
         </div>
         {message && <div className="message">{message}</div>}
